@@ -72,7 +72,6 @@ func TestStore_TransferTx(t *testing.T) {
 
 		_, err = store.GetEntry(context.Background(), toEntry.ID)
 		require.NoError(t, err)
-
 	}
 
 }
