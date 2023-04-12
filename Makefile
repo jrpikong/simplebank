@@ -33,4 +33,7 @@ sqlc:
 test:
 	go test -v -cover ./...
 
-.PHONY: network postgres createdb dropdb migrateup migratedown migrateup1 migratedown1 new_migration sqlc test
+server:
+	go run main.go
+
+.PHONY: network postgres createdb dropdb migrateup migratedown migrateup1 migratedown1 new_migration sqlc test server
