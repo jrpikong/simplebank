@@ -14,6 +14,12 @@ type Response struct {
 	Data       db.Account `json:"data"`
 }
 
+type ListResponse struct {
+	Status     string       `json:"status"`
+	StatusCode int          `json:"statusCode"`
+	Data       []db.Account `json:"data"`
+}
+
 type createAccountRequest struct {
 	Owner    string `json:"owner" binding:"required"`
 	Currency string `json:"currency" binding:"required,oneof=USD EUR"`
@@ -69,7 +75,7 @@ func (server *Server) getAccount(ctx *gin.Context) {
 
 type listAccountRequest struct {
 	PageID   int32 `form:"page_id" binding:"required,min=1"`
-	PageSize int32 `form:"page_size" binding:"required,min=5,max=10"`
+	PageSize int32 `form:"page_size" binding:"required,min=5,max=100"`
 }
 
 func (server *Server) listAccounts(ctx *gin.Context) {
@@ -85,10 +91,12 @@ func (server *Server) listAccounts(ctx *gin.Context) {
 	}
 
 	accounts, err := server.store.ListAccounts(ctx, arg)
+
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
 		return
 	}
 
-	ctx.JSON(http.StatusOK, accounts)
+	ctx.JSON(http.StatusOK, &ListResponse{Status: "success", StatusCode: 200, Data: accounts})
+
 }
