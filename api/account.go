@@ -2,6 +2,7 @@ package api
 
 import (
 	"database/sql"
+	"fmt"
 	"github.com/gin-gonic/gin"
 	db "github.com/jrpikong/simplebank/db/sqlc"
 	"net/http"
@@ -9,15 +10,10 @@ import (
 )
 
 type Response struct {
-	Status     string     `json:"status"`
-	StatusCode int        `json:"statusCode"`
-	Data       db.Account `json:"data"`
-}
-
-type ListResponse struct {
-	Status     string       `json:"status"`
-	StatusCode int          `json:"statusCode"`
-	Data       []db.Account `json:"data"`
+	Status     string `json:"status"`
+	StatusCode int    `json:"statusCode"`
+	Message    string `json:"message" default:"Success"`
+	Data       any    `json:"data"`
 }
 
 type createAccountRequest struct {
@@ -44,7 +40,7 @@ func (server *Server) createAccount(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusOK, &Response{Status: "success", StatusCode: 200, Data: account})
+	ctx.JSON(http.StatusCreated, &Response{Status: "success", StatusCode: http.StatusCreated, Message: "Created Successfully", Data: account})
 }
 
 type getAccountRequest struct {
@@ -97,6 +93,56 @@ func (server *Server) listAccounts(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusOK, &ListResponse{Status: "success", StatusCode: 200, Data: accounts})
+	ctx.JSON(http.StatusOK, &Response{Status: "success", StatusCode: 200, Data: accounts})
 
+}
+
+func (server *Server) deleteAccount(ctx *gin.Context) {
+	var req getAccountRequest
+
+	if err := ctx.ShouldBindUri(&req); err != nil {
+		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		return
+	}
+
+	err := server.store.DeleteAccount(ctx, req.ID)
+	fmt.Println(err)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, &Response{Status: "failed", StatusCode: http.StatusInternalServerError, Message: err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusAccepted, &Response{Status: "success", StatusCode: http.StatusAccepted, Message: "Delete Successfully"})
+}
+
+type updateAccountRequest struct {
+	ID       int64  `json:"id" binding:"required"`
+	Owner    string `json:"owner" binding:"required"`
+	Currency string `json:"currency" binding:"required,oneof=USD EUR"`
+}
+
+func (server *Server) updateAccount(ctx *gin.Context) {
+	var req updateAccountRequest
+
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		return
+	}
+	arg := db.UpdateDataAccountParams{
+		ID:       req.ID,
+		Owner:    req.Owner,
+		Currency: req.Currency,
+	}
+	account, err := server.store.UpdateDataAccount(ctx, arg)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			ctx.JSON(http.StatusNotFound, gin.H{"message": "ID " + strconv.FormatInt(req.ID, 10) + " not found"})
+			return
+		}
+
+		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		return
+	}
+	ctx.JSON(http.StatusAccepted, &Response{Status: "success", StatusCode: http.StatusAccepted, Message: "Update Successfully", Data: account})
 }
